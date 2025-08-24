@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { useAuth } from '../../contexts/AuthContext';
@@ -17,9 +17,21 @@ const Login: React.FC = () => {
   const [errors, setErrors] = useState<Partial<LoginFormData>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string>('');
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check if we have a success message from registration
+    const state = location.state as { message?: string };
+    if (state?.message) {
+      setSuccessMessage(state.message);
+      // Clear the message from location state
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
 
   const validateForm = (): boolean => {
     const newErrors: Partial<LoginFormData> = {};
@@ -89,6 +101,12 @@ const Login: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {successMessage && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                  <p className="text-green-600 text-sm">{successMessage}</p>
+                </div>
+              )}
+              
               {apiError && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
                   <p className="text-red-600 text-sm">{apiError}</p>

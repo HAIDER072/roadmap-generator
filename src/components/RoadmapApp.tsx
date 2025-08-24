@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useRoadmapStore } from '../store/roadmapStore';
+import { useAuth } from '../contexts/AuthContext';
 import RoadmapRenderer from './RoadmapRenderer';
 import ChatSidebar from './ChatSidebar';
 import RoadmapGenerator from './RoadmapGenerator';
 import Home from './Home';
-import { Maximize, Minimize, Plus, MapPin, MessageCircle, Sparkles, BarChart3 } from 'lucide-react';
+import { Maximize, Minimize, Plus, MapPin, MessageCircle, Sparkles, BarChart3, User, LogOut, LogIn, UserPlus } from 'lucide-react';
 
 function RoadmapApp() {
   const {
@@ -16,7 +18,10 @@ function RoadmapApp() {
     toggleFullscreen
   } = useRoadmapStore();
 
+  const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
   const [showGenerator, setShowGenerator] = useState(!currentRoadmap);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const getProgressStats = () => {
     if (!currentRoadmap) return { completed: 0, total: 0, inProgress: 0 };
@@ -30,6 +35,19 @@ function RoadmapApp() {
 
   const stats = getProgressStats();
   const progressPercentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showUserMenu && !target.closest('.user-menu-container')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showUserMenu]);
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
@@ -74,13 +92,15 @@ function RoadmapApp() {
         </div>
 
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setShowGenerator(true)}
-            className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm font-medium"
-          >
-            <Plus className="w-4 h-4 mr-1" />
-            New Roadmap
-          </button>
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowGenerator(true)}
+              className="flex items-center px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-sm font-medium"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              New Roadmap
+            </button>
+          )}
           
           {currentRoadmap && (
             <>
@@ -99,6 +119,67 @@ function RoadmapApp() {
                 {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
               </button>
             </>
+          )}
+
+          {/* Authentication Section */}
+          {isAuthenticated ? (
+            <div className="relative user-menu-container">
+              <button
+                onClick={() => setShowUserMenu(!showUserMenu)}
+                className="flex items-center space-x-2 px-3 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                  {user?.firstName ? user.firstName[0].toUpperCase() : user?.username[0].toUpperCase()}
+                </div>
+                <span className="text-sm font-medium">{user?.firstName || user?.username}</span>
+              </button>
+              
+              {/* User Dropdown Menu */}
+              {showUserMenu && (
+                <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
+                  <div className="px-4 py-2 border-b border-gray-100">
+                    <p className="text-sm font-medium text-gray-900">{user?.fullName || user?.username}</p>
+                    <p className="text-xs text-gray-500">{user?.email}</p>
+                  </div>
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    onClick={() => setShowUserMenu(false)}
+                  >
+                    <User className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={() => {
+                      logout();
+                      setShowUserMenu(false);
+                      navigate('/');
+                    }}
+                    className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" />
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center space-x-2">
+              <Link
+                to="/login"
+                className="flex items-center px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium"
+              >
+                <LogIn className="w-4 h-4 mr-1" />
+                Sign In
+              </Link>
+              <Link
+                to="/register"
+                className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+              >
+                <UserPlus className="w-4 h-4 mr-1" />
+                Sign Up
+              </Link>
+            </div>
           )}
         </div>
         </header>
