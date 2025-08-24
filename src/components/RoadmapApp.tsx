@@ -6,7 +6,7 @@ import RoadmapRenderer from './RoadmapRenderer';
 import ChatSidebar from './ChatSidebar';
 import RoadmapGenerator from './RoadmapGenerator';
 import Home from './Home';
-import { Maximize, Minimize, Plus, MapPin, MessageCircle, Sparkles, BarChart3, User, LogOut, LogIn, UserPlus } from 'lucide-react';
+import { Maximize, Minimize, Plus, MapPin, MessageCircle, Sparkles, BarChart3, User, LogOut, LogIn, UserPlus, Save, Check } from 'lucide-react';
 
 function RoadmapApp() {
   const {
@@ -22,6 +22,8 @@ function RoadmapApp() {
   const navigate = useNavigate();
   const [showGenerator, setShowGenerator] = useState(!currentRoadmap);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   const getProgressStats = () => {
     if (!currentRoadmap) return { completed: 0, total: 0, inProgress: 0 };
@@ -35,6 +37,71 @@ function RoadmapApp() {
 
   const stats = getProgressStats();
   const progressPercentage = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+  // Save roadmap to database
+  const saveRoadmap = async () => {
+    if (!currentRoadmap || !isAuthenticated) return;
+
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Convert roadmap format to match backend expectations
+      const roadmapData = {
+        title: currentRoadmap.title,
+        description: currentRoadmap.description,
+        topic: currentRoadmap.title, // Use title as topic if topic not available
+        difficulty: 'intermediate', // Default difficulty
+        steps: currentRoadmap.nodes.map((node, index) => ({
+          id: node.id,
+          title: node.data.label,
+          description: node.data.description || node.data.content || '',
+          resources: node.data.resources || [],
+          estimatedTime: { value: 1, unit: 'hours' },
+          difficulty: node.data.difficulty || 'intermediate',
+          prerequisites: [],
+          skills: [],
+          isCompleted: node.data.status === 'done',
+          order: index + 1
+        })),
+        tags: [],
+        isPublic: false,
+        metadata: {
+          generatedBy: 'ai',
+          prompt: 'Generated roadmap',
+          version: 1
+        }
+      };
+
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/roadmaps`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(roadmapData)
+      });
+
+      if (response.ok) {
+        setIsSaved(true);
+        // Show success for a few seconds
+        setTimeout(() => setIsSaved(false), 3000);
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to save roadmap: ${errorData.error?.message || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      alert('Network error while saving roadmap');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Reset saved state when roadmap changes
+  useEffect(() => {
+    setIsSaved(false);
+  }, [currentRoadmap]);
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -51,9 +118,8 @@ function RoadmapApp() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      {/* Header - only show when we have a roadmap or are loading/error */}
-      {(currentRoadmap || isLoading || error || showGenerator) && (
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
+      {/* Header - always show for consistency */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
         <div className="flex items-center">
           <div 
             className="flex items-center mr-6 cursor-pointer hover:opacity-80 transition-opacity"
@@ -99,6 +165,28 @@ function RoadmapApp() {
             >
               <Plus className="w-4 h-4 mr-1" />
               New Roadmap
+            </button>
+          )}
+          
+          {/* Save Roadmap Button - show when roadmap exists and user is authenticated */}
+          {currentRoadmap && isAuthenticated && (
+            <button
+              onClick={saveRoadmap}
+              disabled={isSaving || isSaved}
+              className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                isSaved 
+                  ? 'bg-green-100 text-green-800 border border-green-300'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              } ${(isSaving || isSaved) ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+            >
+              {isSaving ? (
+                <div className="w-4 h-4 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
+              ) : isSaved ? (
+                <Check className="w-4 h-4 mr-1" />
+              ) : (
+                <Save className="w-4 h-4 mr-1" />
+              )}
+              {isSaving ? 'Saving...' : isSaved ? 'Saved!' : 'Save Roadmap'}
             </button>
           )}
           
@@ -183,7 +271,6 @@ function RoadmapApp() {
           )}
         </div>
         </header>
-      )}
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
