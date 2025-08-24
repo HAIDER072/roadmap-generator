@@ -24,8 +24,8 @@ const Register: React.FC = () => {
   });
   const [errors, setErrors] = useState<Partial<RegisterFormData & { general?: string }>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRegistered, setIsRegistered] = useState(false);
 
-  const { register } = useAuth();
   const navigate = useNavigate();
 
   const validateForm = (): boolean => {
@@ -92,14 +92,35 @@ const Register: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      await register({
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        firstName: formData.firstName || undefined,
-        lastName: formData.lastName || undefined,
+      const response = await fetch('http://localhost:5000/api/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          firstName: formData.firstName || undefined,
+          lastName: formData.lastName || undefined,
+        }),
       });
-      navigate('/dashboard');
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Registration failed');
+      }
+
+      // Registration successful - show success message and redirect to login
+      setIsRegistered(true);
+      setTimeout(() => {
+        navigate('/login', { 
+          state: { 
+            message: 'Registration successful! Please sign in with your credentials.' 
+          } 
+        });
+      }, 2000);
     } catch (error) {
       console.error('Registration failed:', error);
       setErrors({
@@ -127,6 +148,12 @@ const Register: React.FC = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              {isRegistered && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-4">
+                  <p className="text-green-600 text-sm">✅ Registration successful! Redirecting to login page...</p>
+                </div>
+              )}
+              
               {errors.general && (
                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
                   <p className="text-red-600 text-sm">{errors.general}</p>

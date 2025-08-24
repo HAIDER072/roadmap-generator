@@ -1,11 +1,13 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Header from './components/Header';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import Dashboard from './components/Dashboard';
 import RoadmapApp from './components/RoadmapApp';
+import Home from './components/Home';
 
 // Loading component
 const LoadingSpinner: React.FC = () => (
@@ -28,8 +30,8 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
-// Public Route component (redirects to dashboard if already authenticated)
-const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// Public Route component (redirects to dashboard if already authenticated for auth pages)
+const AuthRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
@@ -39,33 +41,66 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return isAuthenticated ? <Navigate to="/dashboard" /> : <>{children}</>;
 };
 
+// Layout component that includes the header
+const Layout: React.FC<{ children: React.ReactNode; includeHeader?: boolean }> = ({ 
+  children, 
+  includeHeader = true 
+}) => {
+  return (
+    <>
+      {includeHeader && <Header />}
+      {children}
+    </>
+  );
+};
+
+// Home page component that shows the landing page with header
+const HomePage: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" />;
+  }
+  
+  const handleGetStarted = () => {
+    navigate('/register');
+  };
+  
+  return (
+    <Layout>
+      <Home onGetStarted={handleGetStarted} />
+    </Layout>
+  );
+};
+
 function App() {
   return (
     <AuthProvider>
       <Router>
         <div className="App">
           <Routes>
-            {/* Public routes */}
-            <Route path="/" element={
-              <PublicRoute>
-                <RoadmapApp />
-              </PublicRoute>
-            } />
+            {/* Home route */}
+            <Route path="/" element={<HomePage />} />
+            
+            {/* Authentication routes */}
             <Route path="/login" element={
-              <PublicRoute>
+              <AuthRoute>
                 <Login />
-              </PublicRoute>
+              </AuthRoute>
             } />
             <Route path="/register" element={
-              <PublicRoute>
+              <AuthRoute>
                 <Register />
-              </PublicRoute>
+              </AuthRoute>
             } />
             
             {/* Protected routes */}
             <Route path="/dashboard" element={
               <ProtectedRoute>
-                <Dashboard />
+                <Layout>
+                  <Dashboard />
+                </Layout>
               </ProtectedRoute>
             } />
             <Route path="/roadmap" element={
