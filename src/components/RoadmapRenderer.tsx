@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -14,7 +14,9 @@ import {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { useRoadmapStore } from '../store/roadmapStore';
+import { useAuth } from '../contexts/AuthContext';
 import { RoadmapNode as CustomRoadmapNode } from '../types/roadmap';
+import { Save, Check, X } from 'lucide-react';
 
 // Custom Node Components
 interface CustomNodeProps {

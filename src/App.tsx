@@ -59,12 +59,12 @@ const HomePage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" />;
-  }
-  
   const handleGetStarted = () => {
-    navigate('/register');
+    if (isAuthenticated) {
+      navigate('/roadmap');
+    } else {
+      navigate('/register');
+    }
   };
   
   return (
